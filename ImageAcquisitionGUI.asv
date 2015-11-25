@@ -74,48 +74,48 @@ set(handles.Floder,'String',handles.folder);
 
 %Begin to searching for the imaging devices
 handles.devicelist=SearchDevice();
-if isempty(handles.devicelist)
+if handles.devicelist=={}
     msgbox('Please plug in a Guppy camera')
 else
-    namelist=handles.devicelist(:,3);
-    set(handles.DeviceList,'String',namelist);
+    
+namelist=handles.devicelist(:,3);
+set(handles.DeviceList,'String',namelist);
 
-    %initialize the handle to imaging device as 0
-    handles.currentdevice=0;
-    handles.isdevice=0;
+%initialize the handle to imaging device as 0
+handles.currentdevice=0;
+handles.isdevice=0;
 
-    %initialize the image space in GUI
-    blank=zeros(64);
-    handles.img=image('Parent',handles.axes1,'CData',blank);
-    handles.imgprv=image('Parent',handles.axes2,'CData',blank);
+%initialize the image space in GUI
+blank=zeros(64);
+handles.img=image('Parent',handles.axes1,'CData',blank);
+handles.imgprv=image('Parent',handles.axes2,'CData',blank);
 
-    %initialize the preview status
-    handles.prv=0;
+%initialize the preview status
+handles.prv=0;
 
-    %initialize the current showing image and last acquired image
-    handles.currentimage=blank;
-    handles.currentcrop=blank;
-    handles.lastacquired=blank;
-    %initialize the roll back
-    handles.rollbacksize=10;
-    handles.rollback={};
+%initialize the current showing image and last acquired image
+handles.currentimage=blank;
+handles.currentcrop=blank;
+handles.lastacquired=blank;
+%initialize the roll back
+handles.rollbacksize=10;
+handles.rollback={};
 
-    %initialize the frame number and demagnification
-    handles.framenum=3;
-    handles.sfdemag=1;
+%initialize the frame number and demagnification
+handles.framenum=3;
+handles.sfdemag=1;
 
-    %initialize the mark
-    handles.currentmark=0;
-    handles.ifmark=0;
-    setappdata(gcf,'IfMark',0);
-    setappdata(gcf,'CurrentMark',0);
+%initialize the mark
+handles.currentmark=0;
+handles.ifmark=0;
+setappdata(gcf,'IfMark',0);
+setappdata(gcf,'CurrentMark',0);
 
-    % Choose default command line output for ImageAcquisitionGUI
-    handles.output = hObject;
+% Choose default command line output for ImageAcquisitionGUI
+handles.output = hObject;
 
-    % Update handles structure
-    guidata(hObject, handles);
-end
+% Update handles structure
+guidata(hObject, handles);
 
 % UIWAIT makes ImageAcquisitionGUI wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
