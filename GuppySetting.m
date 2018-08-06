@@ -59,11 +59,11 @@ src = getselectedsource(handles.currentdevice);
 
 %set all the ExposureTime and Delay Time
 set(handles.ExposureTime,'String',num2str(src.ExposureTime));
-set(handles.ExposureDelay,'String',num2str(src.ExposureStartTriggerDelay));
+set(handles.ExposureDelay,'String',num2str(src.TriggerDelay));
 a1=log(5*10^5)/1000;
 a2=log(2*10^6+1)/1000;
 exslider=max(min(log(src.ExposureTime/20)/a1,1000),0);
-dlslider=max(min(log(src.ExposureStartTriggerDelay+1)/a2,1000),0);
+dlslider=max(min(log(src.TriggerDelay+1)/a2,1000),0);
 set(handles.ExposureTimeSlider,'Value',exslider);
 set(handles.DelaySlider,'Value',dlslider);
 
@@ -395,9 +395,9 @@ src=handles.src;
 var=get(hObject,'Value');
 a2=exp(log(2*10^6+1)/1000);
 time=round((a2^var)-1);
-src.ExposureStartTriggerDelay=time;
+src.TriggerDelay=time;
 pause(0.1);
-set(handles.ExposureDelay,'String',num2str(src.ExposureStartTriggerDelay));
+set(handles.ExposureDelay,'String',num2str(src.TriggerDelay));
 guidata(hObject,handles);
 
 
@@ -425,9 +425,9 @@ function ExposureDelay_Callback(hObject, eventdata, handles)
 src=handles.src;
 time=round(str2num(get(hObject,'String')));
 a2=log(2*10^6+1)/1000;
-src.ExposureStartTriggerDelay=time;
+src.TriggerDelay=time;
 pause(0.1);
-set(handles.DelaySlider,'Value',log(src.ExposureStartTriggerDelay+1)/a2);
+set(handles.DelaySlider,'Value',log(src.TriggerDelay+1)/a2);
 guidata(hObject,handles);
 
 

@@ -22,7 +22,7 @@ function varargout = ImageAcquisitionGUI(varargin)
 
 % Edit the above text to modify the response to help ImageAcquisitionGUI
 
-% Last Modified by GUIDE v2.5 12-Feb-2015 12:16:43
+% Last Modified by GUIDE v2.5 06-Aug-2018 17:44:42
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -67,9 +67,10 @@ handles.roi=[0,0,1024,1024];
 %end of setting data
 
 %Begin to initialize the saving folder
+YearString = datestr(now,'yyyy');
 MonthString = datestr(now,'yyyy-mm');
 DataString = datestr(now,'yyyy-mm-dd');
-handles.folder=['C:\',MonthString,'\',DataString];
+handles.folder=['R:\Fermi3\Images\',YearString,'\', MonthString,'\',DataString];
 set(handles.Floder,'String',handles.folder);
 
 %Begin to searching for the imaging devices
@@ -325,8 +326,8 @@ if (vid~=0)
     set(handles.Counting,'String','0');
     src = getselectedsource(vid);
     triggerconfig(vid, 'hardware', 'DeviceSpecific', 'DeviceSpecific');
-    src.ExposureStartTriggerActivation = 'RisingEdge';
-    src.ExposureStartTriggerMode = 'On';
+    src.TriggerActivation = 'RisingEdge';
+    src.TriggerMode = 'On';
     vid.TriggerRepeat = N;
     vid.FramesPerTrigger=1;
     vid.Timeout=1000000;
@@ -382,6 +383,8 @@ if (vid~=0)
    else
        handles.rollback=[imag,handles.rollback(1:handles.rollbacksize-1)];
    end
+else
+    msgbox('Please select a Guppy device before continuing');
 end
 
 guidata(hObject, handles);
@@ -410,8 +413,8 @@ if (vid~=0) && get(hObject,'Value')
     set(handles.Counting,'String','0');
     src = getselectedsource(vid);
     triggerconfig(vid, 'hardware', 'DeviceSpecific', 'DeviceSpecific');
-    src.ExposureStartTriggerActivation = 'RisingEdge';
-    src.ExposureStartTriggerMode = 'On';
+    src.TriggerActivation = 'RisingEdge';
+    src.TriggerMode = 'On';
     vid.TriggerRepeat = N;
     vid.FramesPerTrigger=1;
     vid.Timeout=1000000;
@@ -419,10 +422,10 @@ if (vid~=0) && get(hObject,'Value')
     roi=vid.ROI;
     height=roi(4);
     width=roi(3);
-    start(vid);
     set(handles.Status,'String','Image taking');
     while get(hObject,'Value')
         counter=0;
+        start(vid);
         tempimage=cell(1,N);
         set(handles.Counting,'String','0');
         while (counter<N) && not(getappdata(gcf,'Ifabort'))
@@ -482,6 +485,8 @@ if (vid~=0) && get(hObject,'Value')
         end
     end
     set(handles.Status,'String','Stand By');
+else
+    msgbox('Please select a Guppy device before continuing');
 end
 guidata(hObject,handles);
 
@@ -531,7 +536,7 @@ src=getselectedsource(handles.currentdevice);
 %Then read out the default camera setting of guppy camera
 if (strfind(name,'guppy'))
     handles.exposuretime=src.ExposureTime;
-    handles.delaytime=src.ExposureStartTriggerDelay;
+    handles.delaytime=src.TriggerDelay;
     handles.guppybinning='Mode0';
     handles.roi=handles.devicelist.ROIPosition;
     setappdata(gcf,   'ExposureTime'    , handles.exposuretime); 
@@ -640,7 +645,7 @@ if get(handles.AutoExp,'Value');
 else
     src.ExposureAuto = 'Off';
 end
-src.ExposureStartTriggerMode = 'Off';
+src.TriggerMode = 'Off';
 if (handles.currentdevice~=0) && (handles.prv==0)
     vidRes = vid.VideoResolution; 
     nBands = vid.NumberOfBands; 
@@ -1220,3 +1225,21 @@ function CMMax_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- If Enable == 'on', executes on mouse press in 5 pixel border.
+% --- Otherwise, executes on mouse press in 5 pixel border or over AcqOne.
+function AcqOne_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to AcqOne (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on key press with focus on AcqOne and none of its controls.
+function AcqOne_KeyPressFcn(hObject, eventdata, handles)
+% hObject    handle to AcqOne (see GCBO)
+% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
+%	Key: name of the key that was pressed, in lower case
+%	Character: character interpretation of the key(s) that was pressed
+%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
+% handles    structure with handles and user data (see GUIDATA)
