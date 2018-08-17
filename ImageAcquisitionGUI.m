@@ -22,7 +22,7 @@ function varargout = ImageAcquisitionGUI(varargin)
 
 % Edit the above text to modify the response to help ImageAcquisitionGUI
 
-% Last Modified by GUIDE v2.5 06-Aug-2018 17:44:42
+% Last Modified by GUIDE v2.5 08-Aug-2018 17:44:32
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -79,6 +79,10 @@ if isempty(handles.devicelist)
     msgbox('Please plug in a Guppy camera')
 else
     namelist=handles.devicelist(:,3);
+    if exist('namelist.mat','file')==2
+        out=load('namelist.mat');
+        namelist=out.namelist;
+    end
     set(handles.DeviceList,'String',namelist);
 
     %initialize the handle to imaging device as 0
@@ -86,9 +90,8 @@ else
     handles.isdevice=0;
 
     %initialize the image space in GUI
-    blank=zeros(64);
+    blank=zeros(40,64);
     handles.img=image('Parent',handles.axes1,'CData',blank);
-    handles.imgprv=image('Parent',handles.axes2,'CData',blank);
 
     %initialize the preview status
     handles.prv=0;
@@ -559,14 +562,9 @@ function Refresh_Callback(hObject, eventdata, handles)
 handles.devicelist=SearchDevice();
 namelist=handles.devicelist(:,3);
 
-for i=1:length(namelist)
-    if strcmp(namelist{i},'AVT Guppy PRO F503C-gentl1')
-        namelist{i}='Top Green monitor';
-    elseif strcmp(namelist{i},'AVT Guppy PRO F503B-gentl2')
-        namelist{i}='MOT Imaging';
-    else 
-        namelist{i}= namelist{i};
-    end
+if exist('namelist.mat','file')==2
+        out=load('namelist.mat');
+        namelist=out.namelist;
 end
 
 set(handles.DeviceList,'String',namelist);
@@ -638,22 +636,25 @@ function StartPreview_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 vid=handles.currentdevice;
-src = getselectedsource(vid);
-src.IIDCMode = 'Mode6';
-if get(handles.AutoExp,'Value');
-    src.ExposureAuto = 'Continuous';
-else
-    src.ExposureAuto = 'Off';
-end
-src.TriggerMode = 'Off';
-if (handles.currentdevice~=0) && (handles.prv==0)
-    vidRes = vid.VideoResolution; 
-    nBands = vid.NumberOfBands; 
-    %check if the size of marker agree with current size of ROI
-    if not(all([vidRes(2),vidRes(1)]==size(handles.currentmark)))
-        set(handles.Markinpreview,'Value',0);
+if handles.isdevice
+    src = getselectedsource(vid);
+    src.IIDCMode = 'Mode6';
+    if get(handles.AutoExp,'Value')
+        src.ExposureAuto = 'Continuous';
+    else
+        GuppySetting;
     end
-    if get(handles.Showinnew,'Value')
+    src.TriggerMode = 'Off';
+
+
+
+    if (handles.currentdevice~=0) && (handles.prv==0)
+        vidRes = vid.VideoResolution; 
+        nBands = vid.NumberOfBands; 
+        %check if the size of marker agree with current size of ROI
+        if not(all([vidRes(2),vidRes(1)]==size(handles.currentmark)))
+            set(handles.Markinpreview,'Value',0);
+        end
         h=figure(); %
         h2=axes('Parent',h); %
         handles.imgprv=image( zeros(vidRes(2), vidRes(1), nBands),'Parent',h2);
@@ -665,18 +666,11 @@ if (handles.currentdevice~=0) && (handles.prv==0)
         preview(vid,handles.imgprv);
         set(h2,'DataAspectRatioMode','manual','DataAspectRatio',[1 1 1]) ;
     end
-    if get(handles.Showinminor,'Value')
-        handles.imgprv=image( zeros(vidRes(2), vidRes(1), nBands),'Parent',handles.axes2);
-        setappdata(handles.imgprv,'Mark',handles.currentmark);
-        setappdata(handles.imgprv,'UpdatePreviewWindowFcn',@mypreview_fcn);
-        setappdata(handles.imgprv,'vidRes',vidRes);
-        setappdata(handles.imgprv,'Markon',get(handles.Markinpreview,'Value'));
-        set(handles.imgprv,'CDataMapping','scaled');
-        preview(vid,handles.imgprv);
-        set(handles.axes2,'DataAspectRatioMode','manual','DataAspectRatio',[1 1 1]) ;
-    end
+    guidata(hObject,handles);
+else
+    errordlg('No device!')
 end
-guidata(hObject,handles);
+    
 
 function mypreview_fcn(obj,event,himage)
 ifmark=getappdata(himage,'Markon');
@@ -949,7 +943,7 @@ src.ExposureAuto = 'Off';
 if handles.isdevice
     GuppySetting;
 else
-    errordlg('No devive!')
+    errordlg('No device!')
 end
 
 guidata(hObject,handles);
@@ -1084,8 +1078,13 @@ function Rename_Callback(hObject, eventdata, handles)
 namelist=get(handles.DeviceList,'String');
 var=get(handles.DeviceList,'Value');
 newname=get(handles.RenameText,'String');
-namelist{var}=newname;
-set(handles.DeviceList,'String',namelist);
+if strcmp(newname,'')
+    errordlg('Please enter a name')
+else
+    namelist{var}=newname;
+    set(handles.DeviceList,'String',namelist);
+    save('namelist.mat', 'namelist');
+end
 guidata(hObject,handles);
 
 
