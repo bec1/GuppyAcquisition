@@ -22,7 +22,7 @@ function varargout = ImageAcquisitionGUI(varargin)
 
 % Edit the above text to modify the response to help ImageAcquisitionGUI
 
-% Last Modified by GUIDE v2.5 08-Aug-2018 17:44:32
+% Last Modified by GUIDE v2.5 17-Aug-2018 10:58:26
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -60,6 +60,7 @@ setappdata(gcf,   'DelayTime'    , 0);
 setappdata(gcf, 'ROI', [0,0,1024,1024]);
 setappdata(gcf, 'GuppyBinning','Mode1');
 setappdata(gcf,'Ifabort',0);
+% p = gcp(); % start parallel pool for image acquisition. This enables abort and other functionality during repeated acquisition
 handles.exposuretime=1000;
 handles.delaytime=0;
 handles.guppybinning='Mode1';
@@ -81,7 +82,9 @@ else
     namelist=handles.devicelist(:,3);
     if exist('namelist.mat','file')==2
         out=load('namelist.mat');
-        namelist=out.namelist;
+        if length(out.namelist)==length(namelist)
+            namelist=out.namelist;
+        end
     end
     set(handles.DeviceList,'String',namelist);
 
@@ -151,6 +154,7 @@ if (var>0) && (var<=size(handles.rollback,2))
     % update component list
     if NC==3
         componentlist={'OD';'With atoms';'Without atoms';'Dark field'};
+        %componentlist={'PC';'With atoms';'Without atoms';'Dark field'};
     else
         componentlist=cell(NC,1);
         for i=1:NC
@@ -162,6 +166,7 @@ if (var>0) && (var<=size(handles.rollback,2))
     if NC==3
         %show the OD picture
         handles.currentimage=real(-log((chosenimage(:,:,1)-chosenimage(:,:,3))./(chosenimage(:,:,2)-chosenimage(:,:,3))));
+        %handles.currentimage=real((chosenimage(:,:,1)-chosenimage(:,:,3))./(chosenimage(:,:,2)-chosenimage(:,:,3)));
     else
         handles.currentimage=chosenimage(:,:,1);
     end
@@ -201,6 +206,7 @@ if (var>0) && (var<=size(handles.rollback,2))
     % update component list
     if NC==3
         componentlist={'OD';'With atoms';'Without atoms';'Dark field'};
+        %componentlist={'PC';'With atoms';'Without atoms';'Dark field'};
     else
         componentlist=cell(NC,1);
         for i=1:NC
@@ -229,6 +235,8 @@ if NC==3
     if framenum==0
         %show the OD picture
         handles.currentimage=real(-log((currentimage(:,:,1)-currentimage(:,:,3))./(currentimage(:,:,2)-currentimage(:,:,3))));
+        %handles.currentimage=real((currentimage(:,:,1)-currentimage(:,:,3))./(currentimage(:,:,2)-currentimage(:,:,3)));
+        %set(handles.CMCustom,'Value',1)
     else
         handles.currentimage=currentimage(:,:,framenum);
     end
@@ -307,6 +315,7 @@ function Abort_Callback(hObject, eventdata, handles)
 setappdata(gcf,'Ifabort',1);
 set(handles.AcqRep,'Value',0);
 disp('abort');
+errordlg('Please send a single trigger to the Guppy to clear the current acqusition!')
 guidata(hObject,handles);
 
 % --- Executes on button press in AcqOne.
@@ -353,7 +362,7 @@ if (vid~=0)
     % resize the image if indicated
     k=handles.sfdemag;
     if k==1
-        imag=zeros(height,width,N,'uint8');
+        imag=zeros(height,width,N,'int16');
         for i=1:N
             imag(:,:,i)=tempimage{i};
         end
@@ -415,7 +424,11 @@ if (vid~=0) && get(hObject,'Value')
     N=min(max(N,1),6);
     set(handles.Counting,'String','0');
     src = getselectedsource(vid);
-    triggerconfig(vid, 'hardware', 'DeviceSpecific', 'DeviceSpecific');
+    try
+        triggerconfig(vid, 'hardware', 'DeviceSpecific', 'DeviceSpecific');
+    catch
+        disp('womp')
+    end
     src.TriggerActivation = 'RisingEdge';
     src.TriggerMode = 'On';
     vid.TriggerRepeat = N;
@@ -426,24 +439,45 @@ if (vid~=0) && get(hObject,'Value')
     height=roi(4);
     width=roi(3);
     set(handles.Status,'String','Image taking');
+        
     while get(hObject,'Value')
         counter=0;
         start(vid);
         tempimage=cell(1,N);
         set(handles.Counting,'String','0');
         while (counter<N) && not(getappdata(gcf,'Ifabort'))
+%             out = feval(@getsnapshot,vid);
+%             future = parfeval(p,@funcy,1,vid);
+%             fetchOutputs(future);
+%             counter = counter + 1
+%             try
+%                 [taken,imageout] = fetchNext(future,2);
+%             catch E
+%                 %warning('Failed to read an image: %s', getReport(E));
+%                 taken = [];
+%             end
+%             if ~isempty(taken)
+%                 tempimage{counter+1}=imageout;
+%                 counter=counter+1;
+%                 set(handles.Counting,'String',num2str(counter));
+%             elseif getappdata(gcf,'Ifabort')
+%                 disp('Aborted!');
+%                 cancel(future);
+%                 break;
+%             end
             tempimage{counter+1}=getsnapshot(vid);
             counter=counter+1;
             set(handles.Counting,'String',num2str(counter));
         end
         stop(vid);
+%         cancel(future);
         
         
         if not(getappdata(gcf,'Ifabort'))
             % resize the image if indicated
             k=handles.sfdemag;
             if k==1
-                imag=zeros(height,width,N,'uint8');
+                imag=zeros(height,width,N,'int16');
                 for i=1:N
                     imag(:,:,i)=tempimage{i};
                 end
@@ -454,9 +488,10 @@ if (vid~=0) && get(hObject,'Value')
                 end
             end
             % display the image with atom on the main screen
-            handles.currentimage=imag(:,:,1);
+            handles.currentimage=0.01*real(-log(double((imag(:,:,1)-imag(:,:,3))./(imag(:,:,2)-imag(:,:,3)))));
             handles.currentcrop=updatecrop(handles);
             updateshow(handles);
+            caxis(handles.axes1,[0 4]);
 %             imageshow=imag(:,:,1)/4;
 %             if get(handles.CMDirect,'Value')
 %                 %h=image(imageshow,'Parent',handles.axes1,'CDataMapping','direct');
@@ -531,7 +566,7 @@ end
 var=get(handles.DeviceList,'Value');
 adaptor=handles.devicelist{var,1};
 id=handles.devicelist{var,2};
-handles.currentdevice=videoinput(adaptor,id);
+handles.currentdevice=videoinput(adaptor,id, 'Mono16');
 set(handles.CDtag,'String',['Current device: ',handles.devicelist{var,3}]);
 name=imaqhwinfo(handles.currentdevice,'DeviceName');
 setappdata(gcf,   'CurrentDevice'    , handles.currentdevice); 
@@ -564,7 +599,9 @@ namelist=handles.devicelist(:,3);
 
 if exist('namelist.mat','file')==2
         out=load('namelist.mat');
-        namelist=out.namelist;
+        if length(out.namelist)==length(namelist)
+            namelist=out.namelist;
+        end
 end
 
 set(handles.DeviceList,'String',namelist);
@@ -675,17 +712,17 @@ end
 function mypreview_fcn(obj,event,himage)
 ifmark=getappdata(himage,'Markon');
 if ifmark
-    marker=uint8(getappdata(himage,'Mark'));
+    marker= (getappdata(himage,'Mark'));
     vidRes=getappdata(himage,'vidRes');
-    inversemarker=zeros(vidRes(2),vidRes(1),3,'uint8');
-    inversemarker(:,:,1)=uint8(not(marker(:,:)));
-    inversemarker(:,:,2)=uint8(not(marker(:,:)));
-    inversemarker(:,:,3)=uint8(not(marker(:,:)));
+    inversemarker=zeros(vidRes(2),vidRes(1),3,'int16');
+    inversemarker(:,:,1)=int16(not(marker(:,:)));
+    inversemarker(:,:,2)=int16(not(marker(:,:)));
+    inversemarker(:,:,3)=int16(not(marker(:,:)));
     org(:,:,1)=event.Data;
     org(:,:,2)=event.Data;
     org(:,:,3)=event.Data;
     markeddata=org.*inversemarker;
-    redmarker=zeros(vidRes(2),vidRes(1),3,'uint8');
+    redmarker=zeros(vidRes(2),vidRes(1),3,'int16');
     redmarker(:,:,1)=marker*255;
     markeddata=markeddata+redmarker;
     set(himage,'CData' ,markeddata);
@@ -1120,7 +1157,7 @@ if (vid~=0)
     % resize the image if indicated
     k=handles.sfdemag;
     if k==1
-        imag=zeros(height,width,1,'uint8');
+        imag=zeros(height,width,1,'int16');
         imag(:,:,1)=tempimage{1};
     else
         imag=[];
@@ -1132,6 +1169,8 @@ if (vid~=0)
         time = datestr(now,'yyyy-mm-dd_HH-MM-SS');
         filename=[handles.folder,'\',time,'.fits'];
         fitswrite(handles.lastacquired,filename);
+        % assignin('base','imag',handles.lastacquired) %output image to
+        % workspace
     end
    % display the image with atom on the main screen
    handles.currentimage=imag(:,:,1);
@@ -1242,3 +1281,12 @@ function AcqOne_KeyPressFcn(hObject, eventdata, handles)
 %	Character: character interpretation of the key(s) that was pressed
 %	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
 % handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in CMRescale.
+function CMRescale_Callback(hObject, eventdata, handles)
+% hObject    handle to CMRescale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of CMRescale
